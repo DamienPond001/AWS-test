@@ -9,10 +9,11 @@ phases:
   pre_build:
     commands:
       - echo "Pre build"
+      - cd src/main/python/voyclib
   build:
-    commands:
-      - echo "Build started on `date`"
-  post_build:
     commands:
       - echo "Pushing to s3"
       - s3pypi --bucket $BUCKET --secret $SECRET
+  post_build:
+    commands:
+      - echo "Build done - `date`"
