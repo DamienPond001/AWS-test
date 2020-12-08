@@ -15,4 +15,4 @@ phases:
   post_build:
     commands:
       - echo "Pushing to s3"
-      - s3pypi --bucket voyclib --secret 123456
+      - s3pypi --bucket $BUCKET --secret $SECRET

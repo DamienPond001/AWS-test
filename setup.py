@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="voyclib",
-    version="1.0.4",
+    version="1.0.5",
     author="Example Author",
     author_email="author@example.com",
     description="A small example package",
