@@ -1,0 +1,18 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - pip install --upgrade pip
+      - pip install s3pypi
+      - pip freeze
+  pre_build:
+    commands:
+      - echo "Pre build"
+  build:
+    commands:
+      - echo "Build started on `date`"
+  post_build:
+    commands:
+      - echo "Pushing to s3"
+      - s3pypi --bucket voyclib --secret 123456
