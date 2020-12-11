@@ -7,53 +7,61 @@ from troposphere.codebuild import (
     SourceAuth
 )
 from troposphere.iam import PolicyType, Role
+from troposphere.s3 import Bucket, PublicRead, WebsiteConfiguration
 
 import awacs
 from awacs.aws import Allow, Principal, Statement, PolicyDocument
 from awacs.sts import AssumeRole
 
+
+
 t = Template()
+t.set_description(
+    'Voyclib CloudFormation template generation'
+)
 
-# Parameters
+#############################
+#  Parameters
+#############################
 
-github_par = t.add_parameter(
+github_location = t.add_parameter(
     Parameter(
-        'GitLocation',
-        Description='Github clone URL',
-        Type="String",
+        'GithubLocation',
+        Description='Github repo URL',
+        Type='String',
         Default='https://github.com/DamienPond001/AWS-test.git',
         MinLength='1',
         MaxLength='128',
-        ConstraintDescription=('Git clone URL is required')
+        ConstraintDescription=('Git URL is required')
     )
 )
-t.set_parameter_label(github_par, 'Github location')
+t.set_parameter_label(github_location, 'Github location')
 
-branch = t.add_parameter(
+github_branch = t.add_parameter(
     Parameter(
-        'BranchName',
-        Description="Branch to use",
-        Type="String",
-        Default="main",
+        'GithubBranch',
+        Description='Github branch to track',
+        Type='String',
+        Default='main',
         MinLength='1',
         MaxLength='128',
-        ConstraintDescription=('Branch name is required.'),
+        ConstraintDescription=('Git branch is required')
     )
 )
-t.set_parameter_label(branch, 'Github Branch')
+t.set_parameter_label(github_branch, 'Github branch')
 
-buildspec_par = t.add_parameter(
+buildspec_path = t.add_parameter(
     Parameter(
-        'BuildSpec',
-        Description='Path to buildspec yaml',
+        'Buildspec',
+        Description='Path to buildspec.yml',
         Type='String',
         Default='buildspec.yml',
         MinLength='1',
         MaxLength='128',
-        ConstraintDescription='Buildspec path smaller than 128 characters is required.',
+        ConstraintDescription=('buildspec.yml must exist')
     )
 )
-t.set_parameter_label(buildspec_par, 'Buildspec Path')
+t.set_parameter_label(buildspec_path, 'Buildspec Path')
 
 build_image = t.add_parameter(
     Parameter(
@@ -68,13 +76,31 @@ build_image = t.add_parameter(
 )
 t.set_parameter_label(build_image, 'Build Image')
 
-for git_param in [github_par, branch]:
-    t.add_parameter_to_group(git_param, 'Git')
+for p in [github_branch, github_location]:
+    t.add_parameter_to_group(p, 'Git')
 
-for codebuild_param in [buildspec_par, build_image]:
-    t.add_parameter_to_group(codebuild_param, 'Codebuild')
+for p in [buildspec_path, build_image]:
+    t.add_parameter_to_group(p, 'Codebuild')
 
-# Roles
+#############################
+#  S3
+#############################
+
+s3bucket = t.add_resource(
+    Bucket(
+        'VoyclibBucket',
+        BucketName='voyclib-bucket',
+        AccessControl=PublicRead,
+        WebsiteConfiguration=WebsiteConfiguration(
+            IndexDocument='index.html',
+            ErrorDocument='error.html'
+        )
+    )
+)
+
+#############################
+#  Codebuild - Roles and Policies
+#############################
 
 codebuild_role = t.add_resource(
     Role(
@@ -92,13 +118,12 @@ codebuild_role = t.add_resource(
     )
 )
 
-# Policies
-
 codebuild_policy = t.add_resource(
     PolicyType(
         'CodebuildPolicy',
         DependsOn=[
-            'VoyclibProject'
+           'CodebuildRole',
+           'VoyclibBucket',
         ],
         PolicyDocument=awacs.aws.Policy(
             Statement=[
@@ -109,23 +134,37 @@ codebuild_policy = t.add_resource(
                         awacs.aws.Action('logs', 'CreateLogGroup'),
                         awacs.aws.Action('logs', 'PutLogEvents')
                     ],
-                    Resource=[
+                    Resource=[ #add join here
                         (
                             'arn:aws:logs:eu-west-1:714249467706:log-group:'
                             '/aws/codebuild/voyclib-test-build:log-stream:*'
                         ),
                     ]
+                ),
+                Statement(
+                    Effect=Allow,
+                    Action=[
+                        awacs.aws.Action('s3', 'PutObject'),
+                        awacs.aws.Action('s3', 'PutObjectAcl')
+                    ],
+                    Resource=[
+                        (
+                            'arn:aws:s3:::voyclib-bucket/*'
+                        )
+                    ]
                 )
             ]
         ),
-        PolicyName='TemplateTest',
+        PolicyName='CodebuildVoyclibPolicy',
         Roles=[
             Ref(codebuild_role)
         ]
     )
 )
 
-
+#############################
+#  Codebuild
+#############################
 
 artifacts = Artifacts(Type='NO_ARTIFACTS')
 
@@ -133,8 +172,8 @@ source = Source(
     Auth=SourceAuth(
         Type='OAUTH'
     ),
-    Location=Ref(github_par),
-    BuildSpec=Ref(buildspec_par),
+    Location=Ref(github_location),
+    BuildSpec=Ref(buildspec_path),
     GitCloneDepth=1,
     ReportBuildStatus=True,
     Type='GITHUB'
@@ -162,12 +201,12 @@ project = Project(
     Description='Voyclib build project',
     Name="voyclib-test-build",
     Source=source,
-    SourceVersion=Ref(branch),
+    SourceVersion=Ref(github_branch),
     Environment=environment,
     ServiceRole=Ref(codebuild_role)
 )
 
 t.add_resource(project)
 
-with open('voyclib_ci.json', 'w') as f:
+with open('voyclib.json', 'w') as f:
     f.write(t.to_json())

@@ -1,0 +1,196 @@
+{
+    "Description": "Voyclib CloudFormation template generation",
+    "Metadata": {
+        "AWS::CloudFormation::Interface": {
+            "ParameterGroups": [
+                {
+                    "Label": {
+                        "default": "Git"
+                    },
+                    "Parameters": [
+                        "GithubBranch",
+                        "GithubLocation"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Codebuild"
+                    },
+                    "Parameters": [
+                        "Buildspec",
+                        "BuildImage"
+                    ]
+                }
+            ],
+            "ParameterLabels": {
+                "BuildImage": {
+                    "default": "Build Image"
+                },
+                "Buildspec": {
+                    "default": "Buildspec Path"
+                },
+                "GithubBranch": {
+                    "default": "Github branch"
+                },
+                "GithubLocation": {
+                    "default": "Github location"
+                }
+            }
+        }
+    },
+    "Parameters": {
+        "BuildImage": {
+            "ConstraintDescription": "Build image is required.",
+            "Default": "aws/codebuild/amazonlinux2-x86_64-standard:3.0",
+            "Description": "The Codebuild build image.",
+            "MaxLength": "256",
+            "MinLength": "1",
+            "Type": "String"
+        },
+        "Buildspec": {
+            "ConstraintDescription": "buildspec.yml must exist",
+            "Default": "buildspec.yml",
+            "Description": "Path to buildspec.yml",
+            "MaxLength": "128",
+            "MinLength": "1",
+            "Type": "String"
+        },
+        "GithubBranch": {
+            "ConstraintDescription": "Git branch is required",
+            "Default": "main",
+            "Description": "Github branch to track",
+            "MaxLength": "128",
+            "MinLength": "1",
+            "Type": "String"
+        },
+        "GithubLocation": {
+            "ConstraintDescription": "Git URL is required",
+            "Default": "https://github.com/DamienPond001/AWS-test.git",
+            "Description": "Github repo URL",
+            "MaxLength": "128",
+            "MinLength": "1",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "CodebuildPolicy": {
+            "DependsOn": [
+                "CodebuildRole",
+                "VoyclibBucket"
+            ],
+            "Properties": {
+                "PolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "logs:CreateLogStream",
+                                "logs:CreateLogGroup",
+                                "logs:PutLogEvents"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": [
+                                "arn:aws:logs:eu-west-1:714249467706:log-group:/aws/codebuild/voyclib-test-build:log-stream:*"
+                            ]
+                        },
+                        {
+                            "Action": [
+                                "s3:PutObject",
+                                "s3:PutObjectAcl"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": [
+                                "arn:aws:s3:::voyclib-bucket/*"
+                            ]
+                        }
+                    ]
+                },
+                "PolicyName": "CodebuildVoyclibPolicy",
+                "Roles": [
+                    {
+                        "Ref": "CodebuildRole"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::Policy"
+        },
+        "CodebuildRole": {
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "codebuild.amazonaws.com"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "RoleName": "voyclib-codebuild"
+            },
+            "Type": "AWS::IAM::Role"
+        },
+        "VoyclibBucket": {
+            "Properties": {
+                "AccessControl": "PublicRead",
+                "BucketName": "voyclib-bucket",
+                "WebsiteConfiguration": {
+                    "ErrorDocument": "error.html",
+                    "IndexDocument": "index.html"
+                }
+            },
+            "Type": "AWS::S3::Bucket"
+        },
+        "VoyclibProject": {
+            "Properties": {
+                "Artifacts": {
+                    "Type": "NO_ARTIFACTS"
+                },
+                "Description": "Voyclib build project",
+                "Environment": {
+                    "ComputeType": "BUILD_GENERAL1_SMALL",
+                    "EnvironmentVariables": [
+                        {
+                            "Name": "SECRET",
+                            "Value": "noice"
+                        },
+                        {
+                            "Name": "BUCKET",
+                            "Value": "voyclib-bucket"
+                        }
+                    ],
+                    "Image": {
+                        "Ref": "BuildImage"
+                    },
+                    "Type": "LINUX_CONTAINER"
+                },
+                "Name": "voyclib-test-build",
+                "ServiceRole": {
+                    "Ref": "CodebuildRole"
+                },
+                "Source": {
+                    "Auth": {
+                        "Type": "OAUTH"
+                    },
+                    "BuildSpec": {
+                        "Ref": "Buildspec"
+                    },
+                    "GitCloneDepth": 1,
+                    "Location": {
+                        "Ref": "GithubLocation"
+                    },
+                    "ReportBuildStatus": "true",
+                    "Type": "GITHUB"
+                },
+                "SourceVersion": {
+                    "Ref": "GithubBranch"
+                }
+            },
+            "Type": "AWS::CodeBuild::Project"
+        }
+    }
+}
