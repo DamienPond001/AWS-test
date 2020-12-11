@@ -21,6 +21,27 @@ tests = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)"
 tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six"]
 
 [[package]]
+name = "cfn-flip"
+version = "1.2.3"
+description = "Convert AWS CloudFormation templates between JSON and YAML formats"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+Click = "*"
+PyYAML = ">=4.1"
+six = "*"
+
+[[package]]
+name = "click"
+version = "7.1.2"
+description = "Composable command line interface toolkit"
+category = "main"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+
+[[package]]
 name = "colorama"
 version = "0.4.4"
 description = "Cross-platform colored terminal text."
@@ -73,16 +94,38 @@ py = ">=1.5.0"
 six = ">=1.10.0"
 
 [[package]]
+name = "pyyaml"
+version = "5.3.1"
+description = "YAML parser and emitter for Python"
+category = "main"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+
+[[package]]
 name = "six"
 version = "1.15.0"
 description = "Python 2 and 3 compatibility utilities"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
+name = "troposphere"
+version = "2.6.3"
+description = "AWS CloudFormation creation library"
+category = "main"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+[package.dependencies]
+cfn_flip = ">=1.0.2"
+
+[package.extras]
+policy = ["awacs (>=0.8)"]
+
+[[package]]
 name = "voyclib"
-version = "1.0.3"
+version = "1.0.6"
 description = "A small example package"
 category = "main"
 optional = false
@@ -90,13 +133,13 @@ python-versions = ">=3.8"
 
 [package.source]
 type = "legacy"
-url = "http://voyclib.s3-website.eu-west-1.amazonaws.com/123"
+url = "http://voyclib.s3-website.eu-west-1.amazonaws.com/hello"
 reference = "voyclib"
 
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8"
-content-hash = "a8536c85c451f21d7e300035acfcf30155cdb6cb32ab31f9fbbe070c1172be50"
+content-hash = "32ed2613960ead586a222ce1a9c783008712fe9dee497c0dc5cc95648a937b61"
 
 [metadata.files]
 atomicwrites = [
@@ -106,6 +149,13 @@ atomicwrites = [
 attrs = [
     {file = "attrs-20.3.0-py2.py3-none-any.whl", hash = "sha256:31b2eced602aa8423c2aea9c76a724617ed67cf9513173fd3a4f03e3a929c7e6"},
     {file = "attrs-20.3.0.tar.gz", hash = "sha256:832aa3cde19744e49938b91fea06d69ecb9e649c93ba974535d08ad92164f700"},
+]
+cfn-flip = [
+    {file = "cfn_flip-1.2.3.tar.gz", hash = "sha256:2bed32a1f4dca26dc64178d52511fd4ef778b5ccbcf32559cac884ace75bde6a"},
+]
+click = [
+    {file = "click-7.1.2-py2.py3-none-any.whl", hash = "sha256:dacca89f4bfadd5de3d7489b7c8a566eee0d3676333fbb50030263894c38c0dc"},
+    {file = "click-7.1.2.tar.gz", hash = "sha256:d2b5255c7c6349bc1bd1e59e08cd12acbbd63ce649f2588755783aa94dfb6b1a"},
 ]
 colorama = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
@@ -127,8 +177,26 @@ pytest = [
     {file = "pytest-3.10.1-py2.py3-none-any.whl", hash = "sha256:3f193df1cfe1d1609d4c583838bea3d532b18d6160fd3f55c9447fdca30848ec"},
     {file = "pytest-3.10.1.tar.gz", hash = "sha256:e246cf173c01169b9617fc07264b7b1316e78d7a650055235d6d897bc80d9660"},
 ]
+pyyaml = [
+    {file = "PyYAML-5.3.1-cp27-cp27m-win32.whl", hash = "sha256:74809a57b329d6cc0fdccee6318f44b9b8649961fa73144a98735b0aaf029f1f"},
+    {file = "PyYAML-5.3.1-cp27-cp27m-win_amd64.whl", hash = "sha256:240097ff019d7c70a4922b6869d8a86407758333f02203e0fc6ff79c5dcede76"},
+    {file = "PyYAML-5.3.1-cp35-cp35m-win32.whl", hash = "sha256:4f4b913ca1a7319b33cfb1369e91e50354d6f07a135f3b901aca02aa95940bd2"},
+    {file = "PyYAML-5.3.1-cp35-cp35m-win_amd64.whl", hash = "sha256:cc8955cfbfc7a115fa81d85284ee61147059a753344bc51098f3ccd69b0d7e0c"},
+    {file = "PyYAML-5.3.1-cp36-cp36m-win32.whl", hash = "sha256:7739fc0fa8205b3ee8808aea45e968bc90082c10aef6ea95e855e10abf4a37b2"},
+    {file = "PyYAML-5.3.1-cp36-cp36m-win_amd64.whl", hash = "sha256:69f00dca373f240f842b2931fb2c7e14ddbacd1397d57157a9b005a6a9942648"},
+    {file = "PyYAML-5.3.1-cp37-cp37m-win32.whl", hash = "sha256:d13155f591e6fcc1ec3b30685d50bf0711574e2c0dfffd7644babf8b5102ca1a"},
+    {file = "PyYAML-5.3.1-cp37-cp37m-win_amd64.whl", hash = "sha256:73f099454b799e05e5ab51423c7bcf361c58d3206fa7b0d555426b1f4d9a3eaf"},
+    {file = "PyYAML-5.3.1-cp38-cp38-win32.whl", hash = "sha256:06a0d7ba600ce0b2d2fe2e78453a470b5a6e000a985dd4a4e54e436cc36b0e97"},
+    {file = "PyYAML-5.3.1-cp38-cp38-win_amd64.whl", hash = "sha256:95f71d2af0ff4227885f7a6605c37fd53d3a106fcab511b8860ecca9fcf400ee"},
+    {file = "PyYAML-5.3.1-cp39-cp39-win32.whl", hash = "sha256:ad9c67312c84def58f3c04504727ca879cb0013b2517c85a9a253f0cb6380c0a"},
+    {file = "PyYAML-5.3.1-cp39-cp39-win_amd64.whl", hash = "sha256:6034f55dab5fea9e53f436aa68fa3ace2634918e8b5994d82f3621c04ff5ed2e"},
+    {file = "PyYAML-5.3.1.tar.gz", hash = "sha256:b8eac752c5e14d3eca0e6dd9199cd627518cb5ec06add0de9d32baeee6fe645d"},
+]
 six = [
     {file = "six-1.15.0-py2.py3-none-any.whl", hash = "sha256:8b74bedcbbbaca38ff6d7491d76f2b06b3592611af620f8426e82dddb04a5ced"},
     {file = "six-1.15.0.tar.gz", hash = "sha256:30639c035cdb23534cd4aa2dd52c3bf48f06e5f4a941509c8bafd8ce11080259"},
+]
+troposphere = [
+    {file = "troposphere-2.6.3.tar.gz", hash = "sha256:0f1607910ea545906131c820ef629a82a57f087cb99ac573bf9dfcdc1e64e11a"},
 ]
 voyclib = []
