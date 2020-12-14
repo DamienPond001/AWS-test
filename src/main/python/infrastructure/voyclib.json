@@ -20,9 +20,21 @@
                         "Buildspec",
                         "BuildImage"
                     ]
+                },
+                {
+                    "Label": {
+                        "default": "S3"
+                    },
+                    "Parameters": [
+                        "S3BucketName",
+                        "S3BucketSecret"
+                    ]
                 }
             ],
             "ParameterLabels": {
+                "AppName": {
+                    "default": "Application Name"
+                },
                 "BuildImage": {
                     "default": "Build Image"
                 },
@@ -34,11 +46,25 @@
                 },
                 "GithubLocation": {
                     "default": "Github location"
+                },
+                "S3BucketName": {
+                    "default": "S3 Bucket Name"
+                },
+                "S3BucketSecret": {
+                    "default": "S3 Bucket Secret"
                 }
             }
         }
     },
     "Parameters": {
+        "AppName": {
+            "ConstraintDescription": "Git URL is required",
+            "Default": "voyclib",
+            "Description": "Name of the application",
+            "MaxLength": "128",
+            "MinLength": "1",
+            "Type": "String"
+        },
         "BuildImage": {
             "ConstraintDescription": "Build image is required.",
             "Default": "aws/codebuild/amazonlinux2-x86_64-standard:3.0",
@@ -70,6 +96,21 @@
             "MaxLength": "128",
             "MinLength": "1",
             "Type": "String"
+        },
+        "S3BucketName": {
+            "ConstraintDescription": "Bucket name must be provided",
+            "Default": "voyclib",
+            "Description": "Name of s3 voyclib bucket",
+            "MaxLength": "128",
+            "MinLength": "1",
+            "Type": "String"
+        },
+        "S3BucketSecret": {
+            "ConstraintDescription": "Bucket secret directoty must be provided",
+            "Description": "Name of s3 voyclib secret file",
+            "MaxLength": "128",
+            "MinLength": "1",
+            "Type": "String"
         }
     },
     "Resources": {
@@ -89,7 +130,26 @@
                             ],
                             "Effect": "Allow",
                             "Resource": [
-                                "arn:aws:logs:eu-west-1:714249467706:log-group:/aws/codebuild/voyclib-test-build:log-stream:*"
+                                {
+                                    "Fn::Join": [
+                                        ":",
+                                        [
+                                            "arn:aws:logs",
+                                            {
+                                                "Ref": "AWS::Region"
+                                            },
+                                            {
+                                                "Ref": "AWS::AccountId"
+                                            },
+                                            "log_group",
+                                            {
+                                                "Fn::Sub": "/aws/codebuild/voyc-${AppName}-build"
+                                            },
+                                            "log-stream",
+                                            "*"
+                                        ]
+                                    ]
+                                }
                             ]
                         },
                         {
@@ -99,7 +159,20 @@
                             ],
                             "Effect": "Allow",
                             "Resource": [
-                                "arn:aws:s3:::voyclib-bucket/*"
+                                {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            {
+                                                "Fn::GetAtt": [
+                                                    "VoyclibBucket",
+                                                    "Arn"
+                                                ]
+                                            },
+                                            "/*"
+                                        ]
+                                    ]
+                                }
                             ]
                         }
                     ]
@@ -130,14 +203,18 @@
                         }
                     ]
                 },
-                "RoleName": "voyclib-codebuild"
+                "RoleName": {
+                    "Fn::Sub": "voyc-${AppName}"
+                }
             },
             "Type": "AWS::IAM::Role"
         },
         "VoyclibBucket": {
             "Properties": {
                 "AccessControl": "PublicRead",
-                "BucketName": "voyclib-bucket",
+                "BucketName": {
+                    "Ref": "S3BucketName"
+                },
                 "WebsiteConfiguration": {
                     "ErrorDocument": "error.html",
                     "IndexDocument": "index.html"
@@ -156,11 +233,15 @@
                     "EnvironmentVariables": [
                         {
                             "Name": "SECRET",
-                            "Value": "noice"
+                            "Value": {
+                                "Ref": "S3BucketSecret"
+                            }
                         },
                         {
                             "Name": "BUCKET",
-                            "Value": "voyclib-bucket"
+                            "Value": {
+                                "Ref": "S3BucketName"
+                            }
                         }
                     ],
                     "Image": {
@@ -168,7 +249,9 @@
                     },
                     "Type": "LINUX_CONTAINER"
                 },
-                "Name": "voyclib-test-build",
+                "Name": {
+                    "Fn::Sub": "voyc-${AppName}-build"
+                },
                 "ServiceRole": {
                     "Ref": "CodebuildRole"
                 },
@@ -188,6 +271,23 @@
                 },
                 "SourceVersion": {
                     "Ref": "GithubBranch"
+                },
+                "Triggers": {
+                    "FilterGroups": [
+                        [
+                            {
+                                "Pattern": "PUSH,PULL_REQUEST_MERGED",
+                                "Type": "EVENT"
+                            },
+                            {
+                                "Pattern": {
+                                    "Fn::Sub": "refs/heads/${GithubBranch}"
+                                },
+                                "Type": "HEAD_REF"
+                            }
+                        ]
+                    ],
+                    "Webhook": "true"
                 }
             },
             "Type": "AWS::CodeBuild::Project"

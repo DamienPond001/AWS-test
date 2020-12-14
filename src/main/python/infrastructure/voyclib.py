@@ -1,10 +1,19 @@
-from troposphere import Template, Parameter, Ref
+from troposphere import (
+    Template,
+    Parameter,
+    Ref,
+    Join,
+    Sub,
+    GetAtt
+)
 from troposphere.codebuild import (
     Artifacts,
     Environment,
     Source,
     Project,
-    SourceAuth
+    SourceAuth,
+    ProjectTriggers, 
+    WebhookFilter
 )
 from troposphere.iam import PolicyType, Role
 from troposphere.s3 import Bucket, PublicRead, WebsiteConfiguration
@@ -20,16 +29,43 @@ t.set_description(
     'Voyclib CloudFormation template generation'
 )
 
+account_id = Ref('AWS::AccountId')
+region = Ref('AWS::Region')
+
+defaults = {
+    'app_name': 'voyclib',
+    'github_location': 'https://github.com/DamienPond001/AWS-test.git',
+    'github_branch': 'main',
+    'buildspec_path': 'buildspec.yml',
+    'build_image': 'aws/codebuild/amazonlinux2-x86_64-standard:3.0',
+    'build_name': 'voyclib_build',
+    'bucket_name': 'voyclib'
+}
+
+
 #############################
 #  Parameters
 #############################
+
+app_name = t.add_parameter(
+    Parameter(
+        'AppName',
+        Description='Name of the application',
+        Type='String',
+        Default=defaults['app_name'],
+        MinLength='1',
+        MaxLength='128',
+        ConstraintDescription=('Git URL is required')
+    )
+)
+t.set_parameter_label(app_name, 'Application Name')
 
 github_location = t.add_parameter(
     Parameter(
         'GithubLocation',
         Description='Github repo URL',
         Type='String',
-        Default='https://github.com/DamienPond001/AWS-test.git',
+        Default=defaults['github_location'],
         MinLength='1',
         MaxLength='128',
         ConstraintDescription=('Git URL is required')
@@ -42,7 +78,7 @@ github_branch = t.add_parameter(
         'GithubBranch',
         Description='Github branch to track',
         Type='String',
-        Default='main',
+        Default=defaults['github_branch'],
         MinLength='1',
         MaxLength='128',
         ConstraintDescription=('Git branch is required')
@@ -55,7 +91,7 @@ buildspec_path = t.add_parameter(
         'Buildspec',
         Description='Path to buildspec.yml',
         Type='String',
-        Default='buildspec.yml',
+        Default=defaults['buildspec_path'],
         MinLength='1',
         MaxLength='128',
         ConstraintDescription=('buildspec.yml must exist')
@@ -68,7 +104,7 @@ build_image = t.add_parameter(
         'BuildImage',
         Description='The Codebuild build image.',
         Type='String',
-        Default='aws/codebuild/amazonlinux2-x86_64-standard:3.0',
+        Default=defaults['build_image'],
         MinLength='1',
         MaxLength='256',
         ConstraintDescription=('Build image is required.'),
@@ -76,11 +112,39 @@ build_image = t.add_parameter(
 )
 t.set_parameter_label(build_image, 'Build Image')
 
+s3_bucket_name = t.add_parameter(
+    Parameter(
+        'S3BucketName',
+        Description='Name of s3 voyclib bucket',
+        Type='String',
+        Default=defaults['bucket_name'],
+        MinLength='1',
+        MaxLength='128',
+        ConstraintDescription=('Bucket name must be provided'),
+    )
+)
+t.set_parameter_label(s3_bucket_name, 'S3 Bucket Name')
+
+s3_bucket_secret = t.add_parameter(
+    Parameter(
+        'S3BucketSecret',
+        Description='Name of s3 voyclib secret file',
+        Type='String',
+        MinLength='1',
+        MaxLength='128',
+        ConstraintDescription=('Bucket secret directoty must be provided'),
+    )
+)
+t.set_parameter_label(s3_bucket_secret, 'S3 Bucket Secret')
+
 for p in [github_branch, github_location]:
     t.add_parameter_to_group(p, 'Git')
 
 for p in [buildspec_path, build_image]:
     t.add_parameter_to_group(p, 'Codebuild')
+
+for p in [s3_bucket_name, s3_bucket_secret]:
+    t.add_parameter_to_group(p, 'S3')
 
 #############################
 #  S3
@@ -89,7 +153,7 @@ for p in [buildspec_path, build_image]:
 s3bucket = t.add_resource(
     Bucket(
         'VoyclibBucket',
-        BucketName='voyclib-bucket',
+        BucketName=Ref('S3BucketName'),
         AccessControl=PublicRead,
         WebsiteConfiguration=WebsiteConfiguration(
             IndexDocument='index.html',
@@ -114,7 +178,7 @@ codebuild_role = t.add_resource(
                 )
             ]
         ),
-        RoleName='voyclib-codebuild'
+        RoleName=Sub('voyc-${AppName}')
     )
 )
 
@@ -134,11 +198,21 @@ codebuild_policy = t.add_resource(
                         awacs.aws.Action('logs', 'CreateLogGroup'),
                         awacs.aws.Action('logs', 'PutLogEvents')
                     ],
-                    Resource=[ #add join here
-                        (
-                            'arn:aws:logs:eu-west-1:714249467706:log-group:'
-                            '/aws/codebuild/voyclib-test-build:log-stream:*'
-                        ),
+                    Resource=[
+                        Join(
+                            ':',
+                            [
+                                'arn:aws:logs',
+                                region,
+                                account_id,
+                                'log_group',
+                                Sub(
+                                    '/aws/codebuild/voyc-${AppName}-build'
+                                ),
+                                'log-stream',
+                                '*'
+                            ]
+                        )
                     ]
                 ),
                 Statement(
@@ -148,9 +222,7 @@ codebuild_policy = t.add_resource(
                         awacs.aws.Action('s3', 'PutObjectAcl')
                     ],
                     Resource=[
-                        (
-                            'arn:aws:s3:::voyclib-bucket/*'
-                        )
+                        Join("", [GetAtt('VoyclibBucket', 'Arn'), '/*'])
                     ]
                 )
             ]
@@ -186,11 +258,11 @@ environment = Environment(
     EnvironmentVariables=[
         {
             'Name': 'SECRET',
-            'Value': 'noice'
+            'Value': Ref(s3_bucket_secret)
         },
         {
             'Name': 'BUCKET',
-            'Value': 'voyclib-bucket'
+            'Value': Ref(s3_bucket_name)
         }
     ]
 )
@@ -199,11 +271,26 @@ project = Project(
     'VoyclibProject',
     Artifacts=artifacts,
     Description='Voyclib build project',
-    Name="voyclib-test-build",
+    Name=Sub("voyc-${AppName}-build"),
     Source=source,
     SourceVersion=Ref(github_branch),
     Environment=environment,
-    ServiceRole=Ref(codebuild_role)
+    ServiceRole=Ref(codebuild_role),
+    Triggers=ProjectTriggers(
+        Webhook=True,
+        FilterGroups=[
+            [
+                WebhookFilter(
+                    Type='EVENT',
+                    Pattern='PUSH,PULL_REQUEST_MERGED'
+                ),
+                WebhookFilter(
+                    Type='HEAD_REF',
+                    Pattern=Sub('refs/heads/${GithubBranch}')
+                )
+            ]
+        ]
+    )
 )
 
 t.add_resource(project)
