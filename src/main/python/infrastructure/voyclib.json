@@ -141,7 +141,7 @@
                                             {
                                                 "Ref": "AWS::AccountId"
                                             },
-                                            "log_group",
+                                            "log-group",
                                             {
                                                 "Fn::Sub": "/aws/codebuild/voyc-${AppName}-build"
                                             },

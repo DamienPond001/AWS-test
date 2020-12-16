@@ -205,7 +205,7 @@ codebuild_policy = t.add_resource(
                                 'arn:aws:logs',
                                 region,
                                 account_id,
-                                'log_group',
+                                'log-group',
                                 Sub(
                                     '/aws/codebuild/voyc-${AppName}-build'
                                 ),

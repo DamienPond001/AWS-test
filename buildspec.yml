@@ -5,7 +5,7 @@ phases:
     commands:
       - pip install --upgrade pip
       - pip install s3pypi
-      - pip freeze
+      - pip install dephell
   pre_build:
     commands:
       - echo "Pre build"
@@ -13,6 +13,7 @@ phases:
   build:
     commands:
       - echo "Pushing to s3"
+      - dephell deps convert --from=pyproject.toml --to=setup.py
       - s3pypi --bucket $BUCKET --secret $SECRET
   post_build:
     commands:
